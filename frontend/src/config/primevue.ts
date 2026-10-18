@@ -1,0 +1,146 @@
+import { definePreset } from '@primeuix/themes'
+import Aura from '@primeuix/themes/aura'
+import type { PrimeVueConfiguration } from 'primevue/config'
+
+const preset = definePreset(Aura, {
+  components: {
+    tooltip: {
+      root: {
+        maxWidth: '20rem',
+        gutter: '0.5rem',
+        padding: '0.5rem 0.75rem',
+        borderRadius: '10px',
+        shadow: '0 6px 20px #00000026',
+      },
+      colorScheme: {
+        light: { root: { background: '#30283d', color: '#faf7ff' } },
+        dark: { root: { background: '#3b314b', color: '#f7f2ff' } },
+      },
+    },
+  },
+  semantic: {
+    colorScheme: {
+      light: {
+        primary: {
+          color: '{primary.600}',
+          contrastColor: '#ffffff',
+          hoverColor: '{primary.700}',
+          activeColor: '{primary.800}',
+        },
+      },
+      dark: {
+        primary: {
+          color: '{primary.400}',
+          contrastColor: '#17131f',
+          hoverColor: '{primary.300}',
+          activeColor: '{primary.500}',
+        },
+        surface: {
+          0: '#ffffff',
+          50: '#fafafa',
+          100: '#f4f4f5',
+          200: '#e4e4e7',
+          300: '#d4d4d8',
+          400: '#a1a1aa',
+          500: '#71717a',
+          600: '#52525b',
+          700: '#3f3f46',
+          800: '#29292d',
+          900: '#1c1c1f',
+          950: '#111113',
+        },
+      },
+    },
+    primary: {
+      50: '{violet.50}',
+      100: '{violet.100}',
+      200: '{violet.200}',
+      300: '{violet.300}',
+      400: '{violet.400}',
+      500: '{violet.500}',
+      600: '{violet.600}',
+      700: '{violet.700}',
+      800: '{violet.800}',
+      900: '{violet.900}',
+      950: '{violet.950}',
+    },
+  },
+})
+
+export const primeVueConfig: PrimeVueConfiguration = {
+  theme: {
+    preset,
+    options: {
+      darkModeSelector: '.app-dark',
+      cssLayer: { name: 'primevue', order: 'theme, base, primevue, components, utilities' },
+    },
+  },
+  ripple: true,
+  locale: {
+    passwordPrompt: 'Digite uma senha',
+    weak: 'Fraca',
+    medium: 'Média',
+    strong: 'Forte',
+    firstDayOfWeek: 1,
+    dayNames: [
+      'domingo',
+      'segunda-feira',
+      'terça-feira',
+      'quarta-feira',
+      'quinta-feira',
+      'sexta-feira',
+      'sábado',
+    ],
+    dayNamesShort: ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'],
+    dayNamesMin: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
+    monthNames: [
+      'janeiro',
+      'fevereiro',
+      'março',
+      'abril',
+      'maio',
+      'junho',
+      'julho',
+      'agosto',
+      'setembro',
+      'outubro',
+      'novembro',
+      'dezembro',
+    ],
+    monthNamesShort: [
+      'jan',
+      'fev',
+      'mar',
+      'abr',
+      'mai',
+      'jun',
+      'jul',
+      'ago',
+      'set',
+      'out',
+      'nov',
+      'dez',
+    ],
+    today: 'Hoje',
+    clear: 'Limpar',
+    dateFormat: 'dd/mm/yy',
+    emptyMessage: 'Nenhum resultado encontrado',
+    emptyFilterMessage: 'Nenhum resultado encontrado',
+    chooseDate: 'Escolher data',
+    chooseMonth: 'Escolher mês',
+    chooseYear: 'Escolher ano',
+    prevMonth: 'Mês anterior',
+    nextMonth: 'Próximo mês',
+    prevYear: 'Ano anterior',
+    nextYear: 'Próximo ano',
+    fileSizeTypes: ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
+    aria: {
+      close: 'Fechar',
+      firstPageLabel: 'Primeira página',
+      lastPageLabel: 'Última página',
+      nextPageLabel: 'Próxima página',
+      prevPageLabel: 'Página anterior',
+      rowsPerPageLabel: 'Itens por página',
+    },
+  },
+}

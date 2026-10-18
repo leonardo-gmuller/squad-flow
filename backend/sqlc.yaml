@@ -1,0 +1,34 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: internal/app/gateway/postgres/migrations
+    queries: internal/app/gateway/postgres/queries
+    gen:
+      go:
+        package: sqlc
+        out: internal/app/gateway/postgres/sqlc
+        sql_package: pgx/v5
+        emit_interface: true
+        initialisms: ["id", "qa"]
+        emit_empty_slices: true
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: uuid
+            go_type: string
+          - db_type: uuid
+            nullable: true
+            go_type:
+              type: string
+              pointer: true
+          - db_type: pg_catalog.int4
+            go_type: int
+          - db_type: timestamptz
+            go_type:
+              import: time
+              type: Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              import: time
+              type: Time
+              pointer: true

@@ -1,0 +1,13 @@
+.env
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.DS_Store
+*.log
+*.exe
+.tools/
+
+# Material pessoal de estudo, apresentação e LinkedIn
+/apresentacao-local/
