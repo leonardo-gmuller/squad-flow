@@ -11,3 +11,7 @@ test-results/
 
 # Material pessoal de estudo, apresentação e LinkedIn
 /apresentacao-local/
+
+# Binário/artefatos de debug do VSCode
+debug*
+
