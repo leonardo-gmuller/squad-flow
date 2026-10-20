@@ -14,4 +14,4 @@ test-results/
 
 # Binário/artefatos de debug do VSCode
 debug*
-
+__debug*
