@@ -74,12 +74,14 @@ func Setup(ctx context.Context, cfg config.Config) (*Runtime, error) {
 	}
 
 	result.traces = sdktrace.NewTracerProvider(sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(cfg.Telemetry.SampleRatio))), sdktrace.WithBatcher(traceExporter))
+
 	metricExporter, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(strings.TrimRight(cfg.Telemetry.Endpoint, "/")+"/v1/metrics"), otlpmetrichttp.WithTimeout(5*time.Second))
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("metric exporter: %w", err), result.Shutdown(ctx))
 	}
 
 	result.metrics = sdkmetric.NewMeterProvider(sdkmetric.WithResource(res), sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter, sdkmetric.WithInterval(cfg.Telemetry.MetricInterval))))
+
 	logExporter, err := otlploghttp.New(ctx, otlploghttp.WithEndpointURL(strings.TrimRight(cfg.Telemetry.Endpoint, "/")+"/v1/logs"), otlploghttp.WithTimeout(5*time.Second))
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("log exporter: %w", err), result.Shutdown(ctx))

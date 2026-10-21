@@ -30,6 +30,7 @@ func (h *LogHandler) Handle(ctx context.Context, record slog.Record) error {
 
 	record.Attrs(func(attr slog.Attr) bool {
 		present[attr.Key] = true
+
 		return true
 	})
 
