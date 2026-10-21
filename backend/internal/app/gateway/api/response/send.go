@@ -2,6 +2,7 @@
 package response
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -10,17 +11,22 @@ import (
 // Handle keeps response serialization out of application handlers.
 func Handle(handler func(*http.Request) *Response) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		Send(w, handler(r))
+		SendContext(r.Context(), w, handler(r))
 	}
 }
 
 func Send(w http.ResponseWriter, result *Response) {
+	SendContext(context.Background(), w, result)
+}
+
+// SendContext correlates error logs with the request span without changing the response contract.
+func SendContext(ctx context.Context, w http.ResponseWriter, result *Response) {
 	if result == nil {
 		result = AppError(nil)
 	}
 
 	if result.Status >= http.StatusInternalServerError {
-		slog.Error("request failed", "status", result.Status, "error", result.InternalErr)
+		slog.ErrorContext(ctx, "request failed", "status", result.Status, "error", result.InternalErr)
 	}
 
 	for key, values := range result.Headers {

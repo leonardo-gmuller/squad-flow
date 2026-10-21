@@ -23,12 +23,12 @@ func NewWorkspace(demands demand.UseCaseInterface, packages workpackage.UseCaseI
 	mux.Get("/api/v1/releases", func(w http.ResponseWriter, r *http.Request) {
 		items, err := releases.List(r.Context())
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(items))
+		response.SendContext(r.Context(), w, response.OK(items))
 	})
 	mux.Post("/api/v1/releases", func(w http.ResponseWriter, r *http.Request) {
 		var input release.Input
@@ -38,12 +38,12 @@ func NewWorkspace(demands demand.UseCaseInterface, packages workpackage.UseCaseI
 
 		item, err := releases.Create(r.Context(), input)
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.Created(item))
+		response.SendContext(r.Context(), w, response.Created(item))
 	})
 	mux.Put("/api/v1/releases/{id}", func(w http.ResponseWriter, r *http.Request) {
 		var input release.Input
@@ -52,12 +52,12 @@ func NewWorkspace(demands demand.UseCaseInterface, packages workpackage.UseCaseI
 		}
 
 		if err := releases.Update(r.Context(), chi.URLParam(r, "id"), input); err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(map[string]bool{"ok": true}))
+		response.SendContext(r.Context(), w, response.OK(map[string]bool{"ok": true}))
 	})
 	mux.Post("/api/v1/releases/{id}/archive", func(w http.ResponseWriter, r *http.Request) {
 		var input struct {
@@ -69,18 +69,18 @@ func NewWorkspace(demands demand.UseCaseInterface, packages workpackage.UseCaseI
 		}
 
 		if input.Archived == nil {
-			response.Send(w, response.AppError(erring.ErrInvalidInput.WithMessage("informe se a versão deve ser arquivada")))
+			response.SendContext(r.Context(), w, response.AppError(erring.ErrInvalidInput.WithMessage("informe se a versão deve ser arquivada")))
 
 			return
 		}
 
 		if err := releases.SetArchived(r.Context(), chi.URLParam(r, "id"), *input.Archived); err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(map[string]bool{"ok": true}))
+		response.SendContext(r.Context(), w, response.OK(map[string]bool{"ok": true}))
 	})
 	mux.Get("/api/v1/board", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
@@ -91,7 +91,7 @@ func NewWorkspace(demands demand.UseCaseInterface, packages workpackage.UseCaseI
 		if query.Has("limit") {
 			limit, err = strconv.Atoi(query.Get("limit"))
 			if err != nil || limit == 0 {
-				response.Send(w, response.AppError(erring.ErrInvalidInput.WithMessage("limite inválido")))
+				response.SendContext(r.Context(), w, response.AppError(erring.ErrInvalidInput.WithMessage("limite inválido")))
 
 				return
 			}
@@ -100,7 +100,7 @@ func NewWorkspace(demands demand.UseCaseInterface, packages workpackage.UseCaseI
 		if query.Has("offset") {
 			offset, err = strconv.Atoi(query.Get("offset"))
 			if err != nil {
-				response.Send(w, response.AppError(erring.ErrInvalidInput.WithMessage("página inválida")))
+				response.SendContext(r.Context(), w, response.AppError(erring.ErrInvalidInput.WithMessage("página inválida")))
 
 				return
 			}
@@ -108,12 +108,12 @@ func NewWorkspace(demands demand.UseCaseInterface, packages workpackage.UseCaseI
 
 		out, err := board.Board(r.Context(), demand.BoardFilter{ReleaseID: query.Get("release_id"), Archive: query.Get("archive"), Kind: query.Get("kind"), Owner: query.Get("owner"), Search: query.Get("q"), Status: query.Get("status"), Limit: limit, Offset: offset})
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(out))
+		response.SendContext(r.Context(), w, response.OK(out))
 	})
 	mux.Mount("/", New(demands, packages))
 

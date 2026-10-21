@@ -37,7 +37,7 @@ func RequireAuth(service Authenticator) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			principal, err := service.Authenticate(r.Context(), AccessToken(r))
 			if err != nil {
-				response.Send(w, response.AppError(err))
+				response.SendContext(r.Context(), w, response.AppError(err))
 
 				return
 			}

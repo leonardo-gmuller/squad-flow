@@ -13,22 +13,22 @@ func RegisterPackages(router chi.Router, svc workpackage.UseCaseInterface) {
 	router.Get("/api/v1/packages", func(w http.ResponseWriter, r *http.Request) {
 		workPackage, err := svc.List(r.Context())
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(workPackage))
+		response.SendContext(r.Context(), w, response.OK(workPackage))
 	})
 	router.Get("/api/v1/packages/{id}", func(w http.ResponseWriter, r *http.Request) {
 		workPackage, err := svc.Get(r.Context(), chi.URLParam(r, "id"))
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(workPackage))
+		response.SendContext(r.Context(), w, response.OK(workPackage))
 	})
 	router.Post("/api/v1/packages", func(w http.ResponseWriter, r *http.Request) {
 		var in workpackage.Input
@@ -38,11 +38,11 @@ func RegisterPackages(router chi.Router, svc workpackage.UseCaseInterface) {
 
 		workPackage, err := svc.Create(r.Context(), in)
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.Created(workPackage))
+		response.SendContext(r.Context(), w, response.Created(workPackage))
 	})
 }

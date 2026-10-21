@@ -15,29 +15,29 @@ func RegisterCatalog(mux chi.Router, service catalog.UseCaseInterface) {
 	mux.Get("/api/v1/workstreams", func(w http.ResponseWriter, r *http.Request) {
 		items, err := service.List(r.Context())
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(items))
+		response.SendContext(r.Context(), w, response.OK(items))
 	})
 	mux.Get("/api/v1/members", func(w http.ResponseWriter, r *http.Request) {
 		items, err := service.Members(r.Context())
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(items))
+		response.SendContext(r.Context(), w, response.OK(items))
 	})
 
 	save := func(create bool) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			user, ok := ctxkey.GetUser(r.Context())
 			if !ok || user.Role != "admin" {
-				response.Send(w, response.AppError(auth.ErrForbidden))
+				response.SendContext(r.Context(), w, response.AppError(auth.ErrForbidden))
 
 				return
 			}
@@ -50,21 +50,21 @@ func RegisterCatalog(mux chi.Router, service catalog.UseCaseInterface) {
 			if create {
 				item, err := service.Create(r.Context(), user, input)
 				if err != nil {
-					response.Send(w, response.AppError(err))
+					response.SendContext(r.Context(), w, response.AppError(err))
 
 					return
 				}
 
-				response.Send(w, response.Created(item))
+				response.SendContext(r.Context(), w, response.Created(item))
 			} else {
 				item, err := service.Update(r.Context(), user, chi.URLParam(r, "id"), input)
 				if err != nil {
-					response.Send(w, response.AppError(err))
+					response.SendContext(r.Context(), w, response.AppError(err))
 
 					return
 				}
 
-				response.Send(w, response.OK(item))
+				response.SendContext(r.Context(), w, response.OK(item))
 			}
 		}
 	}

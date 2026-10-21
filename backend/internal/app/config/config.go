@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/url"
 	"strings"
@@ -9,6 +11,11 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
+)
+
+const (
+	httpScheme  = "http"
+	httpsScheme = "https"
 )
 
 type Environment string
@@ -25,13 +32,14 @@ type Config struct {
 	Environment Environment `envconfig:"ENVIRONMENT" default:"local"`
 	Development bool        `envconfig:"DEVELOPMENT" default:"true"`
 
-	App      App
-	Server   Server
-	Postgres Postgres
-	Demo     Demo
-	Auth     Auth
-	OpenAI   OpenAI
-	Reports  Reports
+	App       App
+	Server    Server
+	Postgres  Postgres
+	Demo      Demo
+	Auth      Auth
+	OpenAI    OpenAI
+	Reports   Reports
+	Telemetry Telemetry
 }
 
 type App struct {
@@ -88,6 +96,38 @@ type Reports struct {
 	Stream      string `envconfig:"REPORT_QUEUE_STREAM"       default:"squadflow:reports"`
 	Group       string `envconfig:"REPORT_QUEUE_GROUP"        default:"report-workers"`
 	Concurrency int    `envconfig:"REPORT_WORKER_CONCURRENCY" default:"2"`
+}
+
+type Telemetry struct {
+	Enabled        bool          `envconfig:"OTEL_ENABLED"                default:"false"`
+	ServiceName    string        `envconfig:"OTEL_SERVICE_NAME"`
+	Endpoint       string        `envconfig:"OTEL_EXPORTER_OTLP_ENDPOINT" default:"http://localhost:4318"`
+	SampleRatio    float64       `envconfig:"OTEL_TRACE_SAMPLE_RATIO"     default:"1"`
+	MetricInterval time.Duration `envconfig:"OTEL_METRIC_INTERVAL"        default:"15s"`
+	LogLevel       string        `envconfig:"LOG_LEVEL"                   default:"info"`
+}
+
+func (t Telemetry) Validate() error {
+	switch strings.ToLower(t.LogLevel) {
+	case "debug", "info", "warn", "error":
+	default:
+		return errors.New("invalid LOG_LEVEL")
+	}
+
+	if !t.Enabled {
+		return nil
+	}
+
+	endpoint, err := url.Parse(t.Endpoint)
+	if err != nil || endpoint.Host == "" || (endpoint.Scheme != httpScheme && endpoint.Scheme != httpsScheme) || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" {
+		return errors.New("invalid OTEL_EXPORTER_OTLP_ENDPOINT: use an HTTP(S) OTLP base URL")
+	}
+
+	if math.IsNaN(t.SampleRatio) || math.IsInf(t.SampleRatio, 0) || t.SampleRatio < 0 || t.SampleRatio > 1 || t.MetricInterval <= 0 {
+		return errors.New("invalid OTEL sampling ratio or metric interval")
+	}
+
+	return nil
 }
 
 // ConnectionURL devolve a URL que deve ser passada para postgres.New.
@@ -161,13 +201,17 @@ func New(version string) (Config, error) {
 
 	for _, origin := range strings.Split(cfg.Auth.AllowedOrigins, ",") {
 		u, err := url.Parse(strings.TrimSpace(origin))
-		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
+		if err != nil || u.Host == "" || (u.Scheme != httpScheme && u.Scheme != httpsScheme) || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
 			return Config{}, fmt.Errorf("%s: invalid allowed origin", operation)
 		}
 
-		if cfg.Environment == EnvProduction && u.Scheme != "https" {
+		if cfg.Environment == EnvProduction && u.Scheme != httpsScheme {
 			return Config{}, fmt.Errorf("%s: origins must use HTTPS in production", operation)
 		}
+	}
+
+	if err := cfg.Telemetry.Validate(); err != nil {
+		return Config{}, fmt.Errorf("%s: %w", operation, err)
 	}
 
 	cfg.App.Version = version

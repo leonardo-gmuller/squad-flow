@@ -24,6 +24,7 @@ import (
 	reportjobrepo "github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/postgres/repository/reportjob"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/reporthtml"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/security"
+	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/telemetry"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/pkg/identifier"
 )
 
@@ -47,7 +48,7 @@ func (a *App) Configure(ctx context.Context, cfg config.Config) error {
 	llm.StoreResponses = cfg.OpenAI.StoreResponses
 
 	a.Reports = &report.Service{Data: a.NewDemandUseCase(), Repository: reportrepo.NewReportRepository(a.DB.Pool), Generator: llm, Renderer: reporthtml.Renderer{}}
-	a.ReportJobs = &report.JobService{Repository: reportjobrepo.NewReportJobRepository(a.DB.Pool), Reports: a.Reports}
+	a.ReportJobs = &report.JobService{Repository: telemetry.Jobs(reportjobrepo.NewReportJobRepository(a.DB.Pool)), Reports: telemetry.Reports(a.Reports)}
 
 	return nil
 }

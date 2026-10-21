@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"strings"
@@ -51,8 +52,8 @@ func (h *AuthHandler) sessionResult(result auth.Result) *response.Response {
 	)
 }
 
-func (h *AuthHandler) result(w http.ResponseWriter, result auth.Result) {
-	response.Send(w, h.sessionResult(result))
+func (h *AuthHandler) result(ctx context.Context, w http.ResponseWriter, result auth.Result) {
+	response.SendContext(ctx, w, h.sessionResult(result))
 }
 
 func refreshCookie(r *http.Request) string {
@@ -71,24 +72,24 @@ func (h *AuthHandler) RegisterPublic(mux chi.Router) {
 		result, err := h.Service.Refresh(r.Context(), refreshCookie(r))
 		if err != nil {
 			h.clear(w)
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		h.result(w, result)
+		h.result(r.Context(), w, result)
 	})
 	mux.Post("/api/v1/auth/logout", func(w http.ResponseWriter, r *http.Request) {
 		err := h.Service.Logout(r.Context(), refreshCookie(r))
 		h.clear(w)
 
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(map[string]bool{"ok": true}))
+		response.SendContext(r.Context(), w, response.OK(map[string]bool{"ok": true}))
 	})
 }
 
@@ -96,19 +97,19 @@ func (h *AuthHandler) RegisterProtected(mux chi.Router) {
 	h.registerPasswordManagement(mux)
 	mux.Get("/api/v1/auth/me", func(w http.ResponseWriter, r *http.Request) {
 		u, _ := ctxkey.GetUser(r.Context())
-		response.Send(w, response.OK(map[string]any{"user": u}))
+		response.SendContext(r.Context(), w, response.OK(map[string]any{"user": u}))
 	})
 	mux.Get("/api/v1/users", func(w http.ResponseWriter, r *http.Request) {
 		u, _ := ctxkey.GetUser(r.Context())
 
 		out, err := h.Service.Users(r.Context(), u)
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(out))
+		response.SendContext(r.Context(), w, response.OK(out))
 	})
 	mux.Post("/api/v1/users", func(w http.ResponseWriter, r *http.Request) {
 		var input struct {
@@ -125,12 +126,12 @@ func (h *AuthHandler) RegisterProtected(mux chi.Router) {
 
 		out, err := h.Service.CreateUser(r.Context(), u, input.Name, input.Email, input.Password)
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.Created(out))
+		response.SendContext(r.Context(), w, response.Created(out))
 	})
 }
 

@@ -22,36 +22,36 @@ type ReportHandler struct {
 }
 
 func (h *ReportHandler) Register(mux chi.Router) {
-	mux.Get("/api/v1/reports/status", func(w http.ResponseWriter, _ *http.Request) {
-		response.Send(w, response.OK(map[string]any{"enabled": h.Enabled, "asynchronous": true, "format": "html"}))
+	mux.Get("/api/v1/reports/status", func(w http.ResponseWriter, r *http.Request) {
+		response.SendContext(r.Context(), w, response.OK(map[string]any{"enabled": h.Enabled, "asynchronous": true, "format": "html"}))
 	})
 	mux.Get("/api/v1/reports/jobs", func(w http.ResponseWriter, r *http.Request) {
 		user, _ := ctxkey.GetUser(r.Context())
 
 		jobs, err := h.Jobs.List(r.Context(), user.ID)
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(jobs))
+		response.SendContext(r.Context(), w, response.OK(jobs))
 	})
 	mux.Get("/api/v1/reports/jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
 		user, _ := ctxkey.GetUser(r.Context())
 
 		job, err := h.Jobs.Get(r.Context(), user.ID, chi.URLParam(r, "id"))
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(job))
+		response.SendContext(r.Context(), w, response.OK(job))
 	})
 	mux.Post("/api/v1/reports/jobs/{id}/retry", func(w http.ResponseWriter, r *http.Request) {
 		if !h.Enabled {
-			response.Send(w, response.AppError(erring.ErrServiceUnavailable.WithMessage(openai.ErrUnavailable.Error())))
+			response.SendContext(r.Context(), w, response.AppError(erring.ErrServiceUnavailable.WithMessage(openai.ErrUnavailable.Error())))
 
 			return
 		}
@@ -60,56 +60,56 @@ func (h *ReportHandler) Register(mux chi.Router) {
 
 		job, err := h.Jobs.Retry(r.Context(), user, chi.URLParam(r, "id"), r.Header.Get("Idempotency-Key"))
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
 		w.Header().Set("Location", "/api/v1/reports/jobs/"+job.ID)
-		response.Send(w, response.Accepted(job))
+		response.SendContext(r.Context(), w, response.Accepted(job))
 	})
 	mux.Get("/api/v1/reports", func(w http.ResponseWriter, r *http.Request) {
 		user, _ := ctxkey.GetUser(r.Context())
 
 		id := r.URL.Query().Get("demand_id")
 		if id != "" && !identifier.IsUUID(id) {
-			response.Send(w, response.AppError(erring.ErrInvalidInput.WithMessage("demanda inválida")))
+			response.SendContext(r.Context(), w, response.AppError(erring.ErrInvalidInput.WithMessage("demanda inválida")))
 
 			return
 		}
 
 		out, err := h.Service.List(r.Context(), user.ID, id)
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(out))
+		response.SendContext(r.Context(), w, response.OK(out))
 	})
 	mux.Get("/api/v1/reports/{id}", func(w http.ResponseWriter, r *http.Request) {
 		user, _ := ctxkey.GetUser(r.Context())
 
 		id := chi.URLParam(r, "id")
 		if !identifier.IsUUID(id) {
-			response.Send(w, response.AppError(erring.ErrInvalidInput.WithMessage("relatório inválido")))
+			response.SendContext(r.Context(), w, response.AppError(erring.ErrInvalidInput.WithMessage("relatório inválido")))
 
 			return
 		}
 
 		out, err := h.Service.Get(r.Context(), user.ID, id)
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(out))
+		response.SendContext(r.Context(), w, response.OK(out))
 	})
 	mux.Get("/api/v1/reports/{id}/html", h.document)
 	mux.Post("/api/v1/reports/generate", func(w http.ResponseWriter, r *http.Request) {
 		if !h.Enabled {
-			response.Send(w, response.AppError(erring.ErrServiceUnavailable.WithMessage(openai.ErrUnavailable.Error())))
+			response.SendContext(r.Context(), w, response.AppError(erring.ErrServiceUnavailable.WithMessage(openai.ErrUnavailable.Error())))
 
 			return
 		}
@@ -123,20 +123,20 @@ func (h *ReportHandler) Register(mux chi.Router) {
 
 		job, err := h.Jobs.Submit(r.Context(), user, input, r.Header.Get("Idempotency-Key"))
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
 		w.Header().Set("Location", "/api/v1/reports/jobs/"+job.ID)
-		response.Send(w, response.Accepted(job))
+		response.SendContext(r.Context(), w, response.Accepted(job))
 	})
 }
 
 func (h *ReportHandler) document(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if !identifier.IsUUID(id) {
-		response.Send(w, response.AppError(erring.ErrInvalidInput.WithMessage("relatório inválido")))
+		response.SendContext(r.Context(), w, response.AppError(erring.ErrInvalidInput.WithMessage("relatório inválido")))
 
 		return
 	}
@@ -145,14 +145,14 @@ func (h *ReportHandler) document(w http.ResponseWriter, r *http.Request) {
 
 	item, err := h.Service.Get(r.Context(), user.ID, id)
 	if err != nil {
-		response.Send(w, response.AppError(err))
+		response.SendContext(r.Context(), w, response.AppError(err))
 
 		return
 	}
 
 	document, err := (reporthtml.Renderer{}).Render(item.Content)
 	if err != nil {
-		response.Send(w, response.AppError(err))
+		response.SendContext(r.Context(), w, response.AppError(err))
 
 		return
 	}

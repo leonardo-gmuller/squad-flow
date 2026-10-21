@@ -23,5 +23,11 @@ func RequestLogger(next http.Handler) http.Handler {
 
 func logRequest(ctx context.Context, request *http.Request, response chimiddleware.WrapResponseWriter, start time.Time) {
 	id, _ := ctxkey.GetRequestID(ctx)
-	slog.InfoContext(ctx, "http request", "request_id", id, "method", request.Method, "path", request.URL.Path, "status", response.Status(), "duration", time.Since(start).String())
+
+	status := response.Status()
+	if status == 0 {
+		status = http.StatusOK
+	}
+
+	slog.InfoContext(ctx, "http request", "request_id", id, "method", request.Method, "path", request.URL.Path, "status", status, "duration", time.Since(start).String())
 }

@@ -25,12 +25,12 @@ func (h *AuthHandler) registerPasswordReset(mux chi.Router) {
 
 		userID, err := h.Service.ResetPassword(r.Context(), input.Token, input.Password)
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.OK(map[string]any{"ok": true, "user_id": userID}))
+		response.SendContext(r.Context(), w, response.OK(map[string]any{"ok": true, "user_id": userID}))
 	})
 }
 
@@ -47,13 +47,13 @@ func (h *AuthHandler) registerPasswordManagement(mux chi.Router) {
 
 		actor, _ := ctxkey.GetUser(r.Context())
 		if err := h.Service.ChangePassword(r.Context(), actor, input.Current, input.Password); err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
 		h.clear(w)
-		response.Send(w, response.OK(map[string]bool{"ok": true}))
+		response.SendContext(r.Context(), w, response.OK(map[string]bool{"ok": true}))
 	})
 	mux.Put("/api/v1/users/{id}/password", func(w http.ResponseWriter, r *http.Request) {
 		var input struct {
@@ -68,7 +68,7 @@ func (h *AuthHandler) registerPasswordManagement(mux chi.Router) {
 		userID := chi.URLParam(r, "id")
 
 		if err := h.Service.AdminChangePassword(r.Context(), actor, userID, input.Password); err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
@@ -77,18 +77,18 @@ func (h *AuthHandler) registerPasswordManagement(mux chi.Router) {
 			h.clear(w)
 		}
 
-		response.Send(w, response.OK(map[string]bool{"ok": true}))
+		response.SendContext(r.Context(), w, response.OK(map[string]bool{"ok": true}))
 	})
 	mux.Post("/api/v1/users/{id}/password-reset", func(w http.ResponseWriter, r *http.Request) {
 		actor, _ := ctxkey.GetUser(r.Context())
 
 		out, err := h.Service.CreatePasswordReset(r.Context(), actor, chi.URLParam(r, "id"))
 		if err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}
 
-		response.Send(w, response.Created(out))
+		response.SendContext(r.Context(), w, response.Created(out))
 	})
 }

@@ -21,6 +21,8 @@ const (
 var ErrLeaseLost = errors.New("report processing lease is no longer owned")
 
 type Job struct {
+	TraceParent     string     `json:"-"`
+	TraceState      string     `json:"-"`
 	ID              string     `json:"id"`
 	UserID          string     `json:"-"`
 	RequestKey      string     `json:"-"`
@@ -48,9 +50,11 @@ type JobEvent struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 type QueueEvent struct {
-	ID    string `json:"id"`
-	JobID string `json:"job_id"`
-	Type  string `json:"type"`
+	TraceParent string `json:"-"`
+	TraceState  string `json:"-"`
+	ID          string `json:"id"`
+	JobID       string `json:"job_id"`
+	Type        string `json:"type"`
 }
 
 type JobRequests interface {

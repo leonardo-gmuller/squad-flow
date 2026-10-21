@@ -23,6 +23,10 @@ Veja [docs/DOMAIN-MODEL.md](docs/DOMAIN-MODEL.md) para o domínio e [docs/FRONTE
 - **Relatórios assíncronos:** eventos/outbox em PostgreSQL, gateway Redis Streams, worker com retomada e tentativas; documentos HTML independentes para dashboard, apresentação e download. Veja [arquitetura e execução](docs/ASYNC-HTML-REPORTS.md).
 - **Docker Compose:** banco, Redis, API, worker e frontend com Nginx. **Testes:** Go unitários (inclui pacote/OS transacional), integração PostgreSQL sob demanda e Playwright E2E. GitHub Actions já configurado.
 
+## Observabilidade
+
+OpenTelemetry exporta traces, métricas e logs por OTLP HTTP/protobuf, com correlação entre API, PostgreSQL, outbox, Redis, worker e chamadas da LLM. A exportação é opcional (`OTEL_ENABLED=false` por padrão). `make observability-up` inicia o ambiente completo com Collector e Grafana local em `http://127.0.0.1:3000`, com um dashboard provisionado; `make observability-local` sobe apenas a stack para processos Go locais. Veja [OBSERVABILITY.md](docs/OBSERVABILITY.md) para configuração, consultas e limites.
+
 ## Rodar localmente
 
 É necessário ter Docker Engine ou Docker Desktop com Compose v2 e acesso à internet para baixar imagens e dependências.

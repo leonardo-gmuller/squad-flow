@@ -63,3 +63,7 @@ Mocks de unidade de trabalho executam o callback com os repositórios gerados pa
 ## CI
 
 O job de backend verifica SQLC, mocks gerados, lint, `go vet` e as duas suítes. O runner disponibiliza Docker; os testes criam e removem a infraestrutura necessária via Testcontainers. Não são usados serviços PostgreSQL ou Redis compartilhados no job.
+
+## Telemetria
+
+A suíte unitária verifica exporters OTLP HTTP com um receiver de teste e valida correlação de traces/logs, rota HTTP e filtragem de metadados. A suíte de integração inclui `TestObservabilityTraceSurvivesOutboxRedisAndWorker`, com PostgreSQL e Redis descartáveis e um recorder de spans. Veja [OBSERVABILITY.md](OBSERVABILITY.md).

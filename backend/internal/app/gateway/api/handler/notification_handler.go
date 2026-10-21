@@ -24,7 +24,7 @@ func RegisterNotifications(mux chi.Router, service notification.UseCaseInterface
 			if query.Has("limit") {
 				value, err := strconv.Atoi(query.Get("limit"))
 				if err != nil || value <= 0 {
-					response.Send(w, response.AppError(erring.ErrInvalidInput.WithMessage("limite inválido")))
+					response.SendContext(r.Context(), w, response.AppError(erring.ErrInvalidInput.WithMessage("limite inválido")))
 
 					return
 				}
@@ -34,31 +34,31 @@ func RegisterNotifications(mux chi.Router, service notification.UseCaseInterface
 
 			page, err := service.List(r.Context(), user, query.Get("filter"), limit, query.Get("before"))
 			if err != nil {
-				response.Send(w, response.AppError(err))
+				response.SendContext(r.Context(), w, response.AppError(err))
 
 				return
 			}
 
-			response.Send(w, response.OK(page))
+			response.SendContext(r.Context(), w, response.OK(page))
 		})
 		routes.Get("/unread-count", func(w http.ResponseWriter, r *http.Request) {
 			user, _ := ctxkey.GetUser(r.Context())
 
 			count, err := service.UnreadCount(r.Context(), user)
 			if err != nil {
-				response.Send(w, response.AppError(err))
+				response.SendContext(r.Context(), w, response.AppError(err))
 
 				return
 			}
 
-			response.Send(w, response.OK(map[string]int{"count": count}))
+			response.SendContext(r.Context(), w, response.OK(map[string]int{"count": count}))
 		})
 		routes.Post("/{id}/read", func(w http.ResponseWriter, r *http.Request) {
 			user, _ := ctxkey.GetUser(r.Context())
 
 			readAt, err := service.Read(r.Context(), user, chi.URLParam(r, "id"))
 			if err != nil {
-				response.Send(w, response.AppError(err))
+				response.SendContext(r.Context(), w, response.AppError(err))
 
 				return
 			}
@@ -67,14 +67,14 @@ func RegisterNotifications(mux chi.Router, service notification.UseCaseInterface
 				changed(user.ID)
 			}
 
-			response.Send(w, response.OK(map[string]any{"read_at": readAt}))
+			response.SendContext(r.Context(), w, response.OK(map[string]any{"read_at": readAt}))
 		})
 		routes.Post("/read-all", func(w http.ResponseWriter, r *http.Request) {
 			user, _ := ctxkey.GetUser(r.Context())
 
 			readAt, err := service.ReadAll(r.Context(), user)
 			if err != nil {
-				response.Send(w, response.AppError(err))
+				response.SendContext(r.Context(), w, response.AppError(err))
 
 				return
 			}
@@ -83,7 +83,7 @@ func RegisterNotifications(mux chi.Router, service notification.UseCaseInterface
 				changed(user.ID)
 			}
 
-			response.Send(w, response.OK(map[string]any{"read_at": readAt}))
+			response.SendContext(r.Context(), w, response.OK(map[string]any{"read_at": readAt}))
 		})
 	})
 }

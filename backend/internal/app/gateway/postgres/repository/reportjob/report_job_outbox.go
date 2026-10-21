@@ -25,9 +25,11 @@ func (r *ReportJobRepository) ClaimEvents(ctx context.Context, token string, unt
 	events := make([]report.QueueEvent, 0, len(rows))
 	for _, row := range rows {
 		events = append(events, report.QueueEvent{
-			ID:    row.ID,
-			JobID: row.JobID,
-			Type:  row.EventType,
+			ID:          row.ID,
+			TraceParent: row.TraceParent,
+			TraceState:  row.TraceState,
+			JobID:       row.JobID,
+			Type:        row.EventType,
 		})
 	}
 

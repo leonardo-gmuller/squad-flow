@@ -39,6 +39,7 @@ func New(application *app.App, cfg config.Config) *API {
 
 	mux.Use(chimiddleware.RequestID)
 	mux.Use(middleware.RequestContext)
+	mux.Use(middleware.Observability)
 	mux.Use(middleware.RequestLogger)
 	mux.Use(chimiddleware.Recoverer)
 	mux.Use(chimiddleware.NoCache)

@@ -6,33 +6,59 @@ import (
 	"fmt"
 	"sort"
 
+	"go.opentelemetry.io/otel/metric"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/domain/erring"
+	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/telemetry"
 )
 
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-type Client struct{ Pool *pgxpool.Pool }
+type Client struct {
+	Pool    *pgxpool.Pool
+	metrics metric.Registration
+}
 
 func New(ctx context.Context, url string) (*Client, error) {
-	pool, err := pgxpool.New(ctx, url)
+	cfg, err := pgxpool.ParseConfig(url)
 	if err != nil {
 		return nil, erring.Wrap(err, "postgres.New")
 	}
 
-	if err := pool.Ping(ctx); err != nil {
+	cfg.ConnConfig.Tracer = telemetry.NewQueryTracer()
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		return nil, erring.Wrap(err, "postgres.New")
+	}
+
+	if err = pool.Ping(ctx); err != nil {
 		pool.Close()
 
 		return nil, erring.Wrap(err, "postgres.New")
 	}
 
-	return &Client{Pool: pool}, nil
+	registration, err := telemetry.RegisterPool(pool)
+	if err != nil {
+		pool.Close()
+
+		return nil, erring.Wrap(err, "postgres.metrics")
+	}
+
+	return &Client{Pool: pool, metrics: registration}, nil
 }
 
-func (s *Client) Close() { s.Pool.Close() }
+func (s *Client) Close() {
+	if s.metrics != nil {
+		_ = s.metrics.Unregister()
+	}
+
+	s.Pool.Close()
+}
 
 func (s *Client) Migrate(ctx context.Context) error {
 	files, err := migrations.ReadDir("migrations")

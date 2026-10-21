@@ -36,7 +36,7 @@ func New(connectionURL, stream, group string, minIdle time.Duration) (*Queue, er
 }
 func (q *Queue) Close() error { return erring.Wrap(q.client.Close(), "redisqueue.Close") }
 func (q *Queue) Publish(ctx context.Context, event report.QueueEvent) error {
-	_, err := q.client.XAdd(ctx, &redis.XAddArgs{Stream: q.stream, Values: map[string]any{"event_id": event.ID, "job_id": event.JobID, "type": event.Type}}).Result()
+	_, err := q.client.XAdd(ctx, &redis.XAddArgs{Stream: q.stream, Values: map[string]any{"event_id": event.ID, "job_id": event.JobID, "type": event.Type, "traceparent": event.TraceParent, "tracestate": event.TraceState}}).Result()
 
 	return erring.Wrap(err, "redisqueue.Publish")
 }
@@ -92,9 +92,11 @@ func (q *Queue) handle(ctx context.Context, message redis.XMessage, handle func(
 	eventID, _ := message.Values["event_id"].(string)
 	jobID, _ := message.Values["job_id"].(string)
 	kind, _ := message.Values["type"].(string)
+	parent, _ := message.Values["traceparent"].(string)
+	state, _ := message.Values["tracestate"].(string)
 
 	if identifier.IsUUID(eventID) && identifier.IsUUID(jobID) && kind == report.EventRequested {
-		if err := handle(ctx, report.QueueEvent{ID: eventID, JobID: jobID, Type: kind}); err != nil {
+		if err := handle(ctx, report.QueueEvent{ID: eventID, JobID: jobID, Type: kind, TraceParent: parent, TraceState: state}); err != nil {
 			return erring.Wrap(err, "redisqueue.Consume")
 		}
 	} else {

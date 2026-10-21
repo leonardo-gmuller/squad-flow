@@ -61,7 +61,7 @@ func (l *RateLimiter) Limit(next http.Handler) http.Handler {
 
 		if !allowed {
 			w.Header().Set("Retry-After", strconv.Itoa(max(1, int(time.Until(entry.expires).Seconds())+1)))
-			response.Send(w, response.AppError(erring.ErrTooManyRequests))
+			response.SendContext(r.Context(), w, response.AppError(erring.ErrTooManyRequests))
 
 			return
 		}

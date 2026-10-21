@@ -70,6 +70,8 @@ type ReportEvent struct {
 	PublishedAt       *time.Time
 	PublishToken      *string
 	PublishLeaseUntil *time.Time
+	TraceParent       string
+	TraceState        string
 }
 
 type ReportJob struct {
@@ -90,6 +92,8 @@ type ReportJob struct {
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	CompletedAt     *time.Time
+	TraceParent     string
+	TraceState      string
 }
 
 type TestCase struct {

@@ -15,6 +15,7 @@ import (
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/domain/erring"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/api"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/postgres"
+	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/telemetry"
 )
 
 var version = "dev"
@@ -40,6 +41,20 @@ func run() error {
 		syscall.SIGINT,
 	)
 	defer stop()
+
+	telemetryRuntime, err := telemetry.Setup(ctx, cfg)
+	if err != nil {
+		return erring.Wrap(err, "telemetry setup")
+	}
+
+	defer func() {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		if flushError := telemetryRuntime.Shutdown(flushCtx); flushError != nil {
+			slog.Warn("telemetry shutdown failed")
+		}
+	}()
 
 	// PostgreSQL
 	var store *postgres.Client

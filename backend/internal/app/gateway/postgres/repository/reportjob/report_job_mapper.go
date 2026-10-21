@@ -11,6 +11,8 @@ import (
 func toJob(row sqlc.ReportJob) (report.Job, error) {
 	item := report.Job{
 		ID:              row.ID,
+		TraceParent:     row.TraceParent,
+		TraceState:      row.TraceState,
 		UserID:          row.UserID,
 		RequestKey:      row.RequestKey,
 		Status:          row.Status,

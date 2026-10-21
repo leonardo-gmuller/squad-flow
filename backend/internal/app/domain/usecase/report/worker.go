@@ -76,7 +76,7 @@ func (w *Worker) Process(ctx context.Context, event QueueEvent) error {
 		return erring.Wrap(w.Repository.Complete(ctx, job, token, result), "report.worker.Complete")
 	}
 
-	slog.Error("asynchronous report attempt failed", "job_id", job.ID, "attempt", job.Attempts, "error", buildErr)
+	slog.ErrorContext(workCtx, "asynchronous report attempt failed", "job_id", job.ID, "attempt", job.Attempts, "error", buildErr)
 
 	message := "Não foi possível gerar o relatório. Se o problema persistir, contate o administrador."
 	if errors.Is(buildErr, context.DeadlineExceeded) {
@@ -129,7 +129,7 @@ func (w *Worker) Run(ctx context.Context) {
 
 			for ctx.Err() == nil {
 				if err := w.Queue.Consume(ctx, w.Process); err != nil && ctx.Err() == nil {
-					slog.Error("report queue consumer retrying", "error", err)
+					slog.ErrorContext(ctx, "report queue consumer retrying", "error", err)
 				}
 				select {
 				case <-ctx.Done():
@@ -150,11 +150,11 @@ func (w *Worker) Run(ctx context.Context) {
 
 		for {
 			if err := w.Dispatch(ctx); err != nil && ctx.Err() == nil {
-				slog.Warn("report outbox pending", "error", err)
+				slog.WarnContext(ctx, "report outbox pending", "error", err)
 			}
 
 			if err := w.Repository.Recover(ctx); err != nil && ctx.Err() == nil {
-				slog.Error("report recovery failed", "error", err)
+				slog.ErrorContext(ctx, "report recovery failed", "error", err)
 			}
 			select {
 			case <-ctx.Done():

@@ -12,6 +12,7 @@ import (
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/domain/erring"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/domain/usecase/report"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/postgres/sqlc"
+	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/telemetry"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/pkg/identifier"
 )
 
@@ -42,8 +43,12 @@ func (r *ReportJobRepository) Enqueue(ctx context.Context, item report.Job) (rep
 			return erring.Wrap(err, "reportjob.Enqueue.payload")
 		}
 
+		parent, state := telemetry.Inject(ctx)
+
 		row, err := queries.CreateReportJob(ctx, sqlc.CreateReportJobParams{
 			ID:          item.ID,
+			TraceParent: parent,
+			TraceState:  state,
 			UserID:      item.UserID,
 			RequestKey:  item.RequestKey,
 			Request:     payload,
@@ -84,9 +89,16 @@ func recordEvent(ctx context.Context, queries *sqlc.Queries, job report.Job, kin
 		return erring.Wrap(err, "reportjob.event.payload")
 	}
 
+	parent, state := telemetry.Inject(ctx)
+	if parent == "" {
+		parent, state = job.TraceParent, job.TraceState
+	}
+
 	return erring.Wrap(queries.CreateReportEvent(ctx, sqlc.CreateReportEventParams{
 		ID:          id,
 		JobID:       job.ID,
+		TraceParent: parent,
+		TraceState:  state,
 		EventType:   kind,
 		EventData:   payload,
 		AvailableAt: availableAt,

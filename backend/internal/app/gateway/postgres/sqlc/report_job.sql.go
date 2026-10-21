@@ -15,7 +15,7 @@ UPDATE report_jobs SET status='processing',attempts=attempts+1,
     lease_token=$1::uuid,lease_until=$2::timestamptz,
     progress_agent='coleta',progress_message='Consultando os dados do workspace',error_message='',updated_at=now()
 WHERE id=$3 AND status='queued' AND available_at<=now() AND attempts<max_attempts
-RETURNING id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at
+RETURNING id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at, trace_parent, trace_state
 `
 
 type ClaimReportJobParams struct {
@@ -45,6 +45,8 @@ func (q *Queries) ClaimReportJob(ctx context.Context, arg ClaimReportJobParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.TraceParent,
+		&i.TraceState,
 	)
 	return i, err
 }
@@ -56,7 +58,7 @@ WITH pending AS (
     ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT $3::int
 )
 UPDATE report_events e SET publish_token=$1::uuid,publish_lease_until=$2::timestamptz
-FROM pending p WHERE e.id=p.id RETURNING e.id, e.job_id, e.event_type, e.event_data, e.available_at, e.created_at, e.published_at, e.publish_token, e.publish_lease_until
+FROM pending p WHERE e.id=p.id RETURNING e.id, e.job_id, e.event_type, e.event_data, e.available_at, e.created_at, e.published_at, e.publish_token, e.publish_lease_until, e.trace_parent, e.trace_state
 `
 
 type ClaimReportOutboxParams struct {
@@ -84,6 +86,8 @@ func (q *Queries) ClaimReportOutbox(ctx context.Context, arg ClaimReportOutboxPa
 			&i.PublishedAt,
 			&i.PublishToken,
 			&i.PublishLeaseUntil,
+			&i.TraceParent,
+			&i.TraceState,
 		); err != nil {
 			return nil, err
 		}
@@ -117,8 +121,8 @@ func (q *Queries) CompleteReportJob(ctx context.Context, arg CompleteReportJobPa
 }
 
 const createReportEvent = `-- name: CreateReportEvent :exec
-INSERT INTO report_events(id,job_id,event_type,event_data,available_at,created_at)
-VALUES($1,$2,$3,$4,$5,clock_timestamp())
+INSERT INTO report_events(id,job_id,event_type,event_data,available_at,created_at,trace_parent,trace_state)
+VALUES($1,$2,$3,$4,$5,clock_timestamp(),$6,$7)
 `
 
 type CreateReportEventParams struct {
@@ -127,6 +131,8 @@ type CreateReportEventParams struct {
 	EventType   string
 	EventData   []byte
 	AvailableAt time.Time
+	TraceParent string
+	TraceState  string
 }
 
 func (q *Queries) CreateReportEvent(ctx context.Context, arg CreateReportEventParams) error {
@@ -136,14 +142,16 @@ func (q *Queries) CreateReportEvent(ctx context.Context, arg CreateReportEventPa
 		arg.EventType,
 		arg.EventData,
 		arg.AvailableAt,
+		arg.TraceParent,
+		arg.TraceState,
 	)
 	return err
 }
 
 const createReportJob = `-- name: CreateReportJob :one
-INSERT INTO report_jobs(id,user_id,request_key,request,max_attempts)
-VALUES($1,$2,$3,$4,$5)
-RETURNING id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at
+INSERT INTO report_jobs(id,user_id,request_key,request,max_attempts,trace_parent,trace_state)
+VALUES($1,$2,$3,$4,$5,$6,$7)
+RETURNING id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at, trace_parent, trace_state
 `
 
 type CreateReportJobParams struct {
@@ -152,6 +160,8 @@ type CreateReportJobParams struct {
 	RequestKey  string
 	Request     []byte
 	MaxAttempts int
+	TraceParent string
+	TraceState  string
 }
 
 func (q *Queries) CreateReportJob(ctx context.Context, arg CreateReportJobParams) (ReportJob, error) {
@@ -161,6 +171,8 @@ func (q *Queries) CreateReportJob(ctx context.Context, arg CreateReportJobParams
 		arg.RequestKey,
 		arg.Request,
 		arg.MaxAttempts,
+		arg.TraceParent,
+		arg.TraceState,
 	)
 	var i ReportJob
 	err := row.Scan(
@@ -181,6 +193,8 @@ func (q *Queries) CreateReportJob(ctx context.Context, arg CreateReportJobParams
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.TraceParent,
+		&i.TraceState,
 	)
 	return i, err
 }
@@ -192,7 +206,7 @@ UPDATE report_jobs SET status=CASE WHEN attempts<max_attempts THEN 'queued' ELSE
     progress_message=CASE WHEN attempts<max_attempts THEN 'Uma nova tentativa será feita automaticamente' ELSE 'Não foi possível concluir o relatório' END,
     lease_token=NULL,lease_until=NULL,updated_at=now()
 WHERE id=$3 AND status='processing' AND lease_token=$4::uuid
-RETURNING id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at
+RETURNING id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at, trace_parent, trace_state
 `
 
 type FailReportJobParams struct {
@@ -228,12 +242,14 @@ func (q *Queries) FailReportJob(ctx context.Context, arg FailReportJobParams) (R
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.TraceParent,
+		&i.TraceState,
 	)
 	return i, err
 }
 
 const getReportJob = `-- name: GetReportJob :one
-SELECT id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at FROM report_jobs WHERE id=$1 AND user_id=$2
+SELECT id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at, trace_parent, trace_state FROM report_jobs WHERE id=$1 AND user_id=$2
 `
 
 type GetReportJobParams struct {
@@ -262,12 +278,14 @@ func (q *Queries) GetReportJob(ctx context.Context, arg GetReportJobParams) (Rep
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.TraceParent,
+		&i.TraceState,
 	)
 	return i, err
 }
 
 const getReportJobByRequestKey = `-- name: GetReportJobByRequestKey :one
-SELECT id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at FROM report_jobs WHERE user_id=$1 AND request_key=$2
+SELECT id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at, trace_parent, trace_state FROM report_jobs WHERE user_id=$1 AND request_key=$2
 `
 
 type GetReportJobByRequestKeyParams struct {
@@ -296,12 +314,14 @@ func (q *Queries) GetReportJobByRequestKey(ctx context.Context, arg GetReportJob
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.TraceParent,
+		&i.TraceState,
 	)
 	return i, err
 }
 
 const listRecoverableReportJobs = `-- name: ListRecoverableReportJobs :many
-SELECT id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at FROM report_jobs WHERE
+SELECT id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at, trace_parent, trace_state FROM report_jobs WHERE
     (status='processing' AND lease_until<now()) OR
     (status='queued' AND updated_at<now()-interval '60 seconds' AND available_at<=now())
 ORDER BY updated_at LIMIT 100
@@ -334,6 +354,8 @@ func (q *Queries) ListRecoverableReportJobs(ctx context.Context) ([]ReportJob, e
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CompletedAt,
+			&i.TraceParent,
+			&i.TraceState,
 		); err != nil {
 			return nil, err
 		}
@@ -346,7 +368,7 @@ func (q *Queries) ListRecoverableReportJobs(ctx context.Context) ([]ReportJob, e
 }
 
 const listReportEvents = `-- name: ListReportEvents :many
-SELECT e.id, e.job_id, e.event_type, e.event_data, e.available_at, e.created_at, e.published_at, e.publish_token, e.publish_lease_until FROM report_events e JOIN report_jobs j ON j.id=e.job_id
+SELECT e.id, e.job_id, e.event_type, e.event_data, e.available_at, e.created_at, e.published_at, e.publish_token, e.publish_lease_until, e.trace_parent, e.trace_state FROM report_events e JOIN report_jobs j ON j.id=e.job_id
 WHERE j.id=$1 AND j.user_id=$2
 ORDER BY e.created_at,e.id
 `
@@ -375,6 +397,8 @@ func (q *Queries) ListReportEvents(ctx context.Context, arg ListReportEventsPara
 			&i.PublishedAt,
 			&i.PublishToken,
 			&i.PublishLeaseUntil,
+			&i.TraceParent,
+			&i.TraceState,
 		); err != nil {
 			return nil, err
 		}
@@ -387,7 +411,7 @@ func (q *Queries) ListReportEvents(ctx context.Context, arg ListReportEventsPara
 }
 
 const listReportJobs = `-- name: ListReportJobs :many
-SELECT id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at FROM report_jobs WHERE user_id=$1 ORDER BY created_at DESC,id DESC LIMIT 50
+SELECT id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at, trace_parent, trace_state FROM report_jobs WHERE user_id=$1 ORDER BY created_at DESC,id DESC LIMIT 50
 `
 
 func (q *Queries) ListReportJobs(ctx context.Context, userID string) ([]ReportJob, error) {
@@ -417,6 +441,8 @@ func (q *Queries) ListReportJobs(ctx context.Context, userID string) ([]ReportJo
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CompletedAt,
+			&i.TraceParent,
+			&i.TraceState,
 		); err != nil {
 			return nil, err
 		}
@@ -429,7 +455,7 @@ func (q *Queries) ListReportJobs(ctx context.Context, userID string) ([]ReportJo
 }
 
 const lockReportJobLease = `-- name: LockReportJobLease :one
-SELECT id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at FROM report_jobs WHERE id=$1 AND status='processing'
+SELECT id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at, trace_parent, trace_state FROM report_jobs WHERE id=$1 AND status='processing'
 AND lease_token=$2::uuid AND lease_until>now() FOR UPDATE
 `
 
@@ -459,6 +485,8 @@ func (q *Queries) LockReportJobLease(ctx context.Context, arg LockReportJobLease
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.TraceParent,
+		&i.TraceState,
 	)
 	return i, err
 }
@@ -498,7 +526,7 @@ UPDATE report_jobs SET status=CASE WHEN attempts<max_attempts THEN 'queued' ELSE
 WHERE id=$1 AND (
     (status='processing' AND lease_until<now()) OR
     (status='queued' AND updated_at<now()-interval '60 seconds' AND available_at<=now()))
-RETURNING id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at
+RETURNING id, user_id, request_key, request, status, attempts, max_attempts, available_at, lease_token, lease_until, progress_agent, progress_message, error_message, report_id, created_at, updated_at, completed_at, trace_parent, trace_state
 `
 
 func (q *Queries) RecoverReportJob(ctx context.Context, id string) (ReportJob, error) {
@@ -522,6 +550,8 @@ func (q *Queries) RecoverReportJob(ctx context.Context, id string) (ReportJob, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.TraceParent,
+		&i.TraceState,
 	)
 	return i, err
 }

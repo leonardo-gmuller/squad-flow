@@ -12,9 +12,16 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/domain/entity"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/domain/erring"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/domain/usecase/report"
+	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/telemetry"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/pkg/ctxkey"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/pkg/identifier"
 )
@@ -82,14 +89,41 @@ type outputItem struct {
 	} `json:"content"`
 }
 
-func (c *Client) request(ctx context.Context, body map[string]any) (response, error) {
-	var out response
+//nolint:nonamedreturns // Deferred telemetry records the final outcome on every return path.
+func (c *Client) request(ctx context.Context, body map[string]any) (out response, resultError error) {
+	agent, _ := ctxkey.GetAgent(ctx)
+	stage := telemetryStage(agent)
+	ctx, span := otel.Tracer(telemetry.Scope).Start(ctx, "openai.responses", trace.WithSpanKind(trace.SpanKindClient), trace.WithAttributes(attribute.String("gen_ai.system", "openai"), attribute.String("gen_ai.request.model", c.Model), attribute.String("report.stage", stage)))
+	operation := telemetry.NewOperation("llm.request")
+	started := time.Now()
+
+	defer func() {
+		defer span.End()
+
+		outcome := "success"
+		if resultError != nil {
+			outcome = "error"
+
+			telemetry.Failure(span, resultError)
+		}
+
+		operation.Observe(ctx, started, outcome, attribute.String("stage", stage))
+
+		tokens, _ := otel.Meter(telemetry.Scope).Int64Counter("squadflow.llm.tokens")
+		if out.Usage.InputTokens > 0 {
+			tokens.Add(ctx, int64(out.Usage.InputTokens), metric.WithAttributes(attribute.String("direction", "input")))
+		}
+
+		if out.Usage.OutputTokens > 0 {
+			tokens.Add(ctx, int64(out.Usage.OutputTokens), metric.WithAttributes(attribute.String("direction", "output")))
+		}
+	}()
+
 	if c.APIKey == "" {
 		return out, ErrUnavailable
 	}
 
 	body["store"] = c.StoreResponses
-	agent, _ := ctxkey.GetAgent(ctx)
 	reportID, _ := ctxkey.GetRequestID(ctx)
 	body["metadata"] = map[string]string{"application": "squadflow", "agent": agent, "report_job_id": reportID}
 
@@ -112,15 +146,16 @@ func (c *Client) request(ctx context.Context, body map[string]any) (response, er
 	}
 
 	req.Header.Set("X-Client-Request-Id", clientID)
+	(propagation.TraceContext{}).Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 	log := slog.With("report_request_id", reportID, "client_request_id", clientID, "model", c.Model, "agent", agent)
 	start := time.Now()
 
-	log.Info("openai request started")
+	log.InfoContext(ctx, "openai request started")
 
 	res, err := c.HTTP.Do(req)
 	if err != nil {
-		log.Error("openai request failed", "reason", "connection_error", "duration", time.Since(start).String())
+		log.ErrorContext(ctx, "openai request failed", "reason", "connection_error", "duration", time.Since(start).String())
 
 		if ctx.Err() != nil {
 			return out, fmt.Errorf("%w: %w", ErrProvider, ctx.Err())
@@ -130,6 +165,7 @@ func (c *Client) request(ctx context.Context, body map[string]any) (response, er
 	}
 
 	defer res.Body.Close()
+	span.SetAttributes(attribute.Int("http.response.status_code", res.StatusCode))
 
 	if res.StatusCode != http.StatusOK {
 		var body struct {
@@ -146,13 +182,13 @@ func (c *Client) request(ctx context.Context, body map[string]any) (response, er
 		}
 
 		failure := &ProviderError{Status: res.StatusCode, Code: code, RequestID: res.Header.Get("x-request-id")}
-		log.Error("openai request rejected", "http_status", failure.Status, "error_code", failure.Code, "openai_request_id", failure.RequestID, "duration", time.Since(start).String())
+		log.ErrorContext(ctx, "openai request rejected", "http_status", failure.Status, "error_code", failure.Code, "openai_request_id", failure.RequestID, "duration", time.Since(start).String())
 
 		return out, failure
 	}
 
 	if err = json.NewDecoder(io.LimitReader(res.Body, 4<<20)).Decode(&out); err != nil {
-		log.Error("openai response invalid", "openai_request_id", res.Header.Get("x-request-id"))
+		log.ErrorContext(ctx, "openai response invalid", "openai_request_id", res.Header.Get("x-request-id"))
 
 		if ctx.Err() != nil {
 			return out, fmt.Errorf("%w: %w", ErrProvider, ctx.Err())
@@ -162,12 +198,12 @@ func (c *Client) request(ctx context.Context, body map[string]any) (response, er
 	}
 
 	if out.Status != "completed" {
-		log.Error("openai response incomplete", "openai_request_id", res.Header.Get("x-request-id"), "response_status", out.Status)
+		log.ErrorContext(ctx, "openai response incomplete", "openai_request_id", res.Header.Get("x-request-id"), "response_status", out.Status)
 
 		return out, fmt.Errorf("%w: resposta incompleta", ErrProvider)
 	}
 
-	log.Info("openai request completed", "openai_request_id", res.Header.Get("x-request-id"), "response_id", out.ID, "http_status", res.StatusCode, "input_tokens", out.Usage.InputTokens, "output_tokens", out.Usage.OutputTokens, "duration", time.Since(start).String())
+	log.InfoContext(ctx, "openai request completed", "openai_request_id", res.Header.Get("x-request-id"), "response_id", out.ID, "http_status", res.StatusCode, "input_tokens", out.Usage.InputTokens, "output_tokens", out.Usage.OutputTokens, "duration", time.Since(start).String())
 
 	return out, nil
 }
@@ -285,4 +321,13 @@ func (c *Client) Generate(ctx context.Context, prompt string, registry report.To
 	}
 
 	return appendLimitations(reviewed, collected.Limitations), nil
+}
+
+func telemetryStage(agent string) string {
+	switch agent {
+	case "coleta", "análise", "revisão", "correção":
+		return agent
+	default:
+		return "other"
+	}
 }

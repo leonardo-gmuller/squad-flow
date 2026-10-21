@@ -45,8 +45,8 @@ func New(svc demand.UseCaseInterface, packageSvc ...workpackage.UseCaseInterface
 		RegisterPackages(mux, packageSvc[0])
 	}
 
-	mux.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		response.Send(w, response.OK(map[string]string{"status": "ok"}))
+	mux.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		response.SendContext(r.Context(), w, response.OK(map[string]string{"status": "ok"}))
 	})
 	mux.Get("/api/v1/demands", handler.list)
 	mux.Post("/api/v1/demands", handler.create)
@@ -62,7 +62,7 @@ func New(svc demand.UseCaseInterface, packageSvc ...workpackage.UseCaseInterface
 
 func decode(w http.ResponseWriter, r *http.Request, value any) bool {
 	if err := response.Decode(r, value); err != nil {
-		response.Send(w, response.AppError(err))
+		response.SendContext(r.Context(), w, response.AppError(err))
 
 		return false
 	}
@@ -73,12 +73,12 @@ func decode(w http.ResponseWriter, r *http.Request, value any) bool {
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.svc.List(r.Context(), r.URL.Query().Get("kind"), r.URL.Query().Get("status"), r.URL.Query().Get("q"))
 	if err != nil {
-		response.Send(w, response.AppError(err))
+		response.SendContext(r.Context(), w, response.AppError(err))
 
 		return
 	}
 
-	response.Send(w, response.OK(rows))
+	response.SendContext(r.Context(), w, response.OK(rows))
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
@@ -89,12 +89,12 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 
 	out, err := h.svc.Create(r.Context(), req.ToInput())
 	if err != nil {
-		response.Send(w, response.AppError(err))
+		response.SendContext(r.Context(), w, response.AppError(err))
 
 		return
 	}
 
-	response.Send(w, response.Created(out))
+	response.SendContext(r.Context(), w, response.Created(out))
 }
 
 func (h *Handler) edit(w http.ResponseWriter, r *http.Request) {
@@ -105,23 +105,23 @@ func (h *Handler) edit(w http.ResponseWriter, r *http.Request) {
 
 	out, err := h.svc.Edit(r.Context(), chi.URLParam(r, "id"), in)
 	if err != nil {
-		response.Send(w, response.AppError(err))
+		response.SendContext(r.Context(), w, response.AppError(err))
 
 		return
 	}
 
-	response.Send(w, response.OK(out))
+	response.SendContext(r.Context(), w, response.OK(out))
 }
 
 func (h *Handler) detail(w http.ResponseWriter, r *http.Request) {
 	out, err := h.svc.Detail(r.Context(), chi.URLParam(r, "id"))
 	if err != nil {
-		response.Send(w, response.AppError(err))
+		response.SendContext(r.Context(), w, response.AppError(err))
 
 		return
 	}
 
-	response.Send(w, response.OK(out))
+	response.SendContext(r.Context(), w, response.OK(out))
 }
 
 func (h *Handler) move(w http.ResponseWriter, r *http.Request) {
@@ -138,12 +138,12 @@ func (h *Handler) move(w http.ResponseWriter, r *http.Request) {
 
 	out, err := h.svc.Move(r.Context(), chi.URLParam(r, "id"), input)
 	if err != nil {
-		response.Send(w, response.AppError(err))
+		response.SendContext(r.Context(), w, response.AppError(err))
 
 		return
 	}
 
-	response.Send(w, response.OK(out))
+	response.SendContext(r.Context(), w, response.OK(out))
 }
 
 func (h *Handler) addTest(w http.ResponseWriter, r *http.Request) {
@@ -160,23 +160,23 @@ func (h *Handler) addTest(w http.ResponseWriter, r *http.Request) {
 
 	out, err := h.svc.AddTest(r.Context(), chi.URLParam(r, "id"), input)
 	if err != nil {
-		response.Send(w, response.AppError(err))
+		response.SendContext(r.Context(), w, response.AppError(err))
 
 		return
 	}
 
-	response.Send(w, response.Created(out))
+	response.SendContext(r.Context(), w, response.Created(out))
 }
 
 func (h *Handler) metrics(w http.ResponseWriter, r *http.Request) {
 	out, err := h.svc.Metrics(r.Context())
 	if err != nil {
-		response.Send(w, response.AppError(err))
+		response.SendContext(r.Context(), w, response.AppError(err))
 
 		return
 	}
 
-	response.Send(w, response.OK(out))
+	response.SendContext(r.Context(), w, response.OK(out))
 }
 
 func spreadsheetSafe(session string) string {
@@ -191,7 +191,7 @@ func spreadsheetSafe(session string) string {
 func (h *Handler) csv(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.svc.List(r.Context(), "", "", "")
 	if err != nil {
-		response.Send(w, response.AppError(err))
+		response.SendContext(r.Context(), w, response.AppError(err))
 
 		return
 	}

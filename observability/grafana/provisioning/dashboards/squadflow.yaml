@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: SquadFlow
+    orgId: 1
+    folder: SquadFlow
+    type: file
+    disableDeletion: false
+    editable: false
+    options:
+      path: /etc/squadflow/grafana/dashboards

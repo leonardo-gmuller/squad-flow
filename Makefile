@@ -3,7 +3,7 @@ GOLANGCI_LINT := $(CURDIR)/.tools/bin/golangci-lint
 SQLC_VERSION := 1.27.0
 SQLC ?= $(CURDIR)/.tools/bin/sqlc
 
-.PHONY: up down logs test test-unit test-integration test-e2e mocks-generate mocks-check rebuild lint lint-fix lint-install lint-front lint-front-fix format-front format-front-check check-front sqlc-install sqlc-ready sqlc-generate sqlc-check
+.PHONY: observability-up observability-local observability-logs up down logs test test-unit test-integration test-e2e mocks-generate mocks-check rebuild lint lint-fix lint-install lint-front lint-front-fix format-front format-front-check check-front sqlc-install sqlc-ready sqlc-generate sqlc-check
 up:
 	docker compose up -d --build
 logs:
@@ -52,3 +52,10 @@ sqlc-check: sqlc-ready
 	cd backend && "$(SQLC)" compile
 	cd backend && "$(SQLC)" vet
 	cd backend && "$(SQLC)" diff
+
+observability-up:
+	OTEL_ENABLED=true docker compose --profile observability up -d --build
+observability-local:
+	docker compose -f compose.observability.yaml up -d
+observability-logs:
+	docker compose --profile observability logs -f --tail=100 otel-lgtm

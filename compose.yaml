@@ -30,6 +30,13 @@ services:
     build: ./backend
     environment: &backend_environment
       PROCESS_ROLE: api
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_SERVICE_NAME: squadflow-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_COLLECTOR_ENDPOINT:-http://otel-lgtm:4318}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      OTEL_TRACE_SAMPLE_RATIO: ${OTEL_TRACE_SAMPLE_RATIO:-1}
+      OTEL_METRIC_INTERVAL: ${OTEL_METRIC_INTERVAL:-15s}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       REDIS_URL: redis://redis:6379/0
       REPORT_QUEUE_STREAM: squadflow:reports
       REPORT_QUEUE_GROUP: report-workers
@@ -60,6 +67,7 @@ services:
     environment:
       <<: *backend_environment
       PROCESS_ROLE: worker
+      OTEL_SERVICE_NAME: squadflow-worker
       DEMO_SEED: "false"
     depends_on:
       db:
@@ -76,6 +84,13 @@ services:
       - api
     restart: unless-stopped
 
+  otel-lgtm:
+    extends:
+      file: compose.observability.yaml
+      service: otel-lgtm
+    profiles: [observability]
+
 volumes:
   pgdata:
   redisdata:
+  oteldata:

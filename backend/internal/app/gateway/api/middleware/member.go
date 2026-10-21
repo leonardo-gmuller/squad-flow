@@ -13,13 +13,13 @@ func RequireMember(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, ok := ctxkey.GetUser(r.Context())
 		if !ok {
-			response.Send(w, response.AppError(auth.ErrUnauthorized))
+			response.SendContext(r.Context(), w, response.AppError(auth.ErrUnauthorized))
 
 			return
 		}
 
 		if err := notification.RequireMember(user); err != nil {
-			response.Send(w, response.AppError(err))
+			response.SendContext(r.Context(), w, response.AppError(err))
 
 			return
 		}

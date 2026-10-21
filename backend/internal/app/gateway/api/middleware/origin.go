@@ -35,14 +35,14 @@ func (p *OriginPolicy) Allowed(origin string) bool {
 func (p *OriginPolicy) Protect(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if origin := r.Header.Get("Origin"); origin != "" && !p.Allowed(origin) {
-			response.Send(w, response.AppError(erring.ErrOriginNotAllowed))
+			response.SendContext(r.Context(), w, response.AppError(erring.ErrOriginNotAllowed))
 
 			return
 		}
 
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			if r.Header.Get("X-Squadflow-Client") != "web" || !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-				response.Send(w, response.AppError(erring.ErrCSRFProtection))
+				response.SendContext(r.Context(), w, response.AppError(erring.ErrCSRFProtection))
 
 				return
 			}

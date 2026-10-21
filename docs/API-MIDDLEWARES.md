@@ -6,10 +6,11 @@
 
 1. **Chi `RequestID`:** preserva `X-Request-ID` recebido ou gera um identificador.
 2. **`RequestContext`:** disponibiliza esse identificador, `Authorization`, `Idempotency-Key` e o transporte HTTP por `ctxkey`; devolve o identificador em `X-Request-ID` na resposta.
-3. **`RequestLogger`:** usa `slog` e o response writer do Chi para registrar método, caminho, status, duração e request ID, sem registrar credenciais.
-4. **Chi `Recoverer`:** trata panics em todas as rotas, inclusive autenticação e relatórios, com HTTP 500 quando a resposta ainda pode ser escrita. O corpo de um panic segue o comportamento do Chi; erros tratados usam o contrato JSON de `api/response`.
-5. **Chi `NoCache`:** desabilita cache das respostas da API.
-6. **`OriginPolicy.Protect`:** valida origens exatas e mantém a exigência de JSON com `X-Squadflow-Client: web` para mutações. Clientes Bearer podem omitir Origin, mas precisam desses headers.
+3. **`Observability`:** extrai contexto W3C, cria span HTTP e registra métricas por template da rota. Expõe `X-Trace-Id`; health checks e WebSocket ficam fora da medida de latência HTTP. Veja [OBSERVABILITY.md](OBSERVABILITY.md).
+4. **`RequestLogger`:** usa `slog` e o response writer do Chi para registrar método, caminho, status, duração e request ID, sem registrar credenciais.
+5. **Chi `Recoverer`:** trata panics em todas as rotas, inclusive autenticação e relatórios, com HTTP 500 quando a resposta ainda pode ser escrita. O corpo de um panic segue o comportamento do Chi; erros tratados usam o contrato JSON de `api/response`.
+6. **Chi `NoCache`:** desabilita cache das respostas da API.
+7. **`OriginPolicy.Protect`:** valida origens exatas e mantém a exigência de JSON com `X-Squadflow-Client: web` para mutações. Clientes Bearer podem omitir Origin, mas precisam desses headers.
 
 Login, refresh, logout e health check são públicos. O grupo protegido recebe `RequireAuth`, que valida Bearer ou cookie `sf_access`, consulta a sessão e coloca o usuário autenticado no contexto. Bearer tem precedência sobre o cookie; um Bearer inválido não usa o cookie como alternativa. Permissões de administrador continuam nos casos de uso.
 

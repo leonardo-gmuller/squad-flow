@@ -2,8 +2,8 @@
 SELECT pg_advisory_xact_lock(hashtextextended(sqlc.arg(user_id)::text, 77621893));
 
 -- name: CreateReportJob :one
-INSERT INTO report_jobs(id,user_id,request_key,request,max_attempts)
-VALUES(sqlc.arg(id),sqlc.arg(user_id),sqlc.arg(request_key),sqlc.arg(request),sqlc.arg(max_attempts))
+INSERT INTO report_jobs(id,user_id,request_key,request,max_attempts,trace_parent,trace_state)
+VALUES(sqlc.arg(id),sqlc.arg(user_id),sqlc.arg(request_key),sqlc.arg(request),sqlc.arg(max_attempts),sqlc.arg(trace_parent),sqlc.arg(trace_state))
 RETURNING *;
 
 -- name: GetReportJobByRequestKey :one
@@ -16,8 +16,8 @@ SELECT * FROM report_jobs WHERE id=sqlc.arg(id) AND user_id=sqlc.arg(user_id);
 SELECT * FROM report_jobs WHERE user_id=sqlc.arg(user_id) ORDER BY created_at DESC,id DESC LIMIT 50;
 
 -- name: CreateReportEvent :exec
-INSERT INTO report_events(id,job_id,event_type,event_data,available_at,created_at)
-VALUES(sqlc.arg(id),sqlc.arg(job_id),sqlc.arg(event_type),sqlc.arg(event_data),sqlc.arg(available_at),clock_timestamp());
+INSERT INTO report_events(id,job_id,event_type,event_data,available_at,created_at,trace_parent,trace_state)
+VALUES(sqlc.arg(id),sqlc.arg(job_id),sqlc.arg(event_type),sqlc.arg(event_data),sqlc.arg(available_at),clock_timestamp(),sqlc.arg(trace_parent),sqlc.arg(trace_state));
 
 -- name: ListReportEvents :many
 SELECT e.* FROM report_events e JOIN report_jobs j ON j.id=e.job_id

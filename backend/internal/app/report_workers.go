@@ -9,6 +9,7 @@ import (
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/domain/erring"
 	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/domain/usecase/report"
 	redisqueue "github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/queue/redis"
+	"github.com/leonardo-gmuller/squad-flow/backend/internal/app/gateway/telemetry"
 )
 
 func (a *App) RunReportWorkers(ctx context.Context, cfg config.Config) error {
@@ -30,7 +31,7 @@ func (a *App) RunReportWorkers(ctx context.Context, cfg config.Config) error {
 		}
 	}()
 
-	worker := report.Worker{Repository: a.ReportJobs.Repository, Reports: a.Reports, Queue: queue, Timeout: cfg.OpenAI.Timeout, Concurrency: cfg.Reports.Concurrency}
+	worker := report.Worker{Repository: a.ReportJobs.Repository, Reports: telemetry.Reports(a.Reports), Queue: telemetry.Events(queue), Timeout: cfg.OpenAI.Timeout, Concurrency: cfg.Reports.Concurrency}
 	worker.Run(ctx)
 
 	return nil
