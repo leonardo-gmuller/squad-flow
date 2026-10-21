@@ -4,6 +4,9 @@ test('exige login, usa cookies HttpOnly e limpa a sessão ao sair', async ({ pag
   const email = process.env.E2E_EMAIL,
     password = process.env.E2E_PASSWORD
   if (!email || !password) throw new Error('Configure E2E_EMAIL e E2E_PASSWORD.')
+  await page.route('**/api/v1/reports/status', (route) =>
+    route.fulfill({ json: { enabled: false } }),
+  )
   await page.goto('/reports')
   await expect(page).toHaveURL(/\/login/)
   await page.getByLabel('Email', { exact: true }).fill(email)
@@ -33,6 +36,7 @@ test('exige login, usa cookies HttpOnly e limpa a sessão ao sair', async ({ pag
     page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link'),
   ).toHaveCount(10)
   await expect(page.getByText('ACESSO RÁPIDO', { exact: true })).toHaveCount(0)
+  await page.getByRole('tab', { name: 'Relatórios com IA', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Gerar relatório', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'Sair', exact: true }).click()
   await expect(page).toHaveURL(/\/login$/)

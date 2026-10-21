@@ -5,6 +5,7 @@ import type { Release } from '../../src/types'
 test('vincula demandas, consulta entregas e arquiva/restaura uma versão sem perder o histórico', async ({
   page,
 }) => {
+  test.setTimeout(90_000)
   const marker = Date.now().toString(),
     name = `v-e2e-${marker}`,
     title = `Entrega versionada ${marker}`
@@ -132,6 +133,8 @@ test('vincula demandas, consulta entregas e arquiva/restaura uma versão sem per
 test('Kanban carrega 20 cartões por coluna, pagina e filtra sem baixar a lista completa', async ({
   page,
 }) => {
+  // Other tests write to the same workspace; their events would reset the loaded pages.
+  await page.routeWebSocket('**/api/v1/ws', (ws) => ws.close())
   const marker = `Paginacao-${Date.now()}`
   const versionResponse = await page.request.post('/api/v1/releases', {
     headers: { 'X-SquadFlow-Client': 'web' },

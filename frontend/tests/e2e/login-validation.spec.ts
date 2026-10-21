@@ -57,7 +57,11 @@ test('credenciais incorretas mostram o erro público e permitem corrigir o pedid
       },
     })
   })
+  const initialRefresh = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/v1/auth/refresh',
+  )
   await page.goto('/login')
+  await initialRefresh
   const previousRefreshes = refreshes
   await page.getByLabel('Email', { exact: true }).fill('test@example.com')
   await page.getByLabel('Senha', { exact: true }).fill('senha incorreta')

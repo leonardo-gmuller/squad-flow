@@ -173,11 +173,13 @@ test('relatórios desenham linhas e barras com valores negativos e usam Progress
   await expect(
     dailyDates.getByRole('rowheader', { name: '1 de setembro de 2026', exact: true }),
   ).toBeAttached()
+  await page.getByRole('tab', { name: 'OS e equipe', exact: true }).click()
   await expectPainted(page.getByRole('img', { name: 'Volume por esteira', exact: true }))
   await expect(page.getByRole('progressbar', { name: 'Progresso da OS OS-10' })).toHaveAttribute(
     'aria-valuenow',
     '50',
   )
+  await page.getByRole('tab', { name: 'Relatórios com IA', exact: true }).click()
   await page.getByLabel('Seus relatórios salvos').click()
   await page.getByRole('option', { name: /Análise dos gráficos/ }).click()
   const rendered = page.getByRole('article', { name: 'Relatório gerado' })

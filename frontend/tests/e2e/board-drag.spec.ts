@@ -238,7 +238,11 @@ test.describe('toque no celular', () => {
       .poll(() => page.locator('.kanban-board').evaluate((element) => element.scrollLeft))
       .toBeGreaterThan(180)
     await touch('touchMove', 190, y)
-    await expect(page.getByTestId('board-in_progress')).toHaveClass(/is-drop-over/)
+    const target = page.getByTestId('board-in_progress')
+    await target.scrollIntoViewIfNeeded()
+    const destination = (await target.boundingBox())!
+    await touch('touchMove', destination.x + destination.width / 2, destination.y + 100)
+    await expect(target).toHaveClass(/is-drop-over/)
     await page.screenshot({ path: 'test-results/board-drag-mobile.png', animations: 'disabled' })
     await touch('touchEnd')
     await expect(card(page, 'in_progress')).toBeVisible()

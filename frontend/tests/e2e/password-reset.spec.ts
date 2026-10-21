@@ -42,6 +42,9 @@ test('admin altera senha e compartilha reset interno de uso único', async ({
     await page.getByRole('textbox', { name: 'Buscar usuários', exact: true }).fill(user.email)
     await page.getByRole('button', { name: `Alterar senha de ${user.name}`, exact: true }).click()
     const change = page.getByRole('dialog', { name: 'Alterar senha do usuário', exact: true })
+    await expect(change).toBeVisible()
+    // Dialog focuses a field after its opening transition; wait before typing.
+    await expect(change).not.toHaveClass(/p-dialog-enter-active/)
     await change.getByLabel(/^Nova senha/).fill('AdminAlterada123!')
     await change.getByLabel(/^Confirmar nova senha/).fill('OutraSenha123!')
     await change.getByRole('button', { name: 'Salvar nova senha', exact: true }).click()
@@ -80,7 +83,9 @@ test('admin altera senha e compartilha reset interno de uso único', async ({
     await member.getByLabel(/^Nova senha/).fill('NaoPodeReusar123!')
     await member.getByLabel(/^Confirmar nova senha/).fill('NaoPodeReusar123!')
     await member.getByRole('button', { name: 'Redefinir minha senha', exact: true }).click()
-    await expect(member.getByRole('alert')).toContainText('inválido ou expirado')
+    await expect(member.getByRole('alert')).toContainText(
+      'O link de redefinição é inválido ou expirou.',
+    )
     expect((await page.request.get('/api/v1/users')).status()).toBe(200)
   } finally {
     await memberContext.close().catch(() => {})
@@ -100,9 +105,9 @@ test('membro altera sua senha com confirmação da senha atual', async ({ page }
   await page.getByLabel(/^Nova senha/).fill('MinhaAlteracao123!')
   await page.getByLabel(/^Confirmar nova senha/).fill('MinhaAlteracao123!')
   await page.getByRole('button', { name: 'Salvar nova senha', exact: true }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'senha atual incorreta' })).toContainText(
-    'senha atual incorreta',
-  )
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'A senha atual está incorreta.' }),
+  ).toBeVisible()
   expect((await page.request.get('/api/v1/auth/me')).status()).toBe(200)
   await page.getByLabel(/^Senha atual/).fill(original)
   await page.getByRole('button', { name: 'Salvar nova senha', exact: true }).click()
